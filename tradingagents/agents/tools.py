@@ -13,6 +13,22 @@ from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.router import route_to_vendor
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
+# Indicator names a model sometimes puts in the ``symbol`` argument (seen as
+# yfinance looking up tickers "MACD", "BOLL_UB", "VWMA"). None of these is a
+# real listing the analysts mean, so such a symbol is read as the run's ticker.
+_INDICATOR_NAMES = frozenset({
+    "close_50_sma", "close_200_sma", "close_10_ema", "macd", "macds", "macdh",
+    "rsi", "boll", "boll_ub", "boll_lb", "atr", "vwma", "mfi",
+    "sma", "ema", "bollinger", "bbands", "obv", "adx", "cci", "kdj", "stoch",
+})
+
+
+def _symbol_or_run_ticker(symbol: str, run_ticker: str) -> str:
+    """The symbol to fetch: the run's ticker when the model passed an indicator name."""
+    if run_ticker and str(symbol or "").strip().lower() in _INDICATOR_NAMES:
+        return run_ticker
+    return symbol
+
 
 @tool
 def get_stock_data(
@@ -20,6 +36,7 @@ def get_stock_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_ticker: Annotated[str, InjectedState("company_of_interest")] = "",
 ) -> str:
     """
     Retrieve stock price data (OHLCV) for a given ticker symbol.
@@ -32,6 +49,7 @@ def get_stock_data(
         str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
     """
     start_date, end_date = as_of_window(start_date, end_date, trade_date)
+    symbol = _symbol_or_run_ticker(symbol, run_ticker)
     return route_to_vendor("get_stock_data", symbol, start_date, end_date)
 
 
@@ -42,6 +60,7 @@ def get_indicators(
     curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"] = 30,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_ticker: Annotated[str, InjectedState("company_of_interest")] = "",
 ) -> str:
     """
     Retrieve a single technical indicator for a given ticker symbol.
@@ -57,6 +76,13 @@ def get_indicators(
     # LLMs sometimes pass multiple indicators as a comma-separated string;
     # split and process each individually.
     curr_date = as_of(curr_date, trade_date)
+    # A model that swaps the arguments sends the indicator as the symbol and
+    # the ticker as the indicator; keep the indicator it meant.
+    if str(symbol or "").strip().lower() in _INDICATOR_NAMES and (
+        not indicator or indicator.strip().upper() == str(run_ticker).strip().upper()
+    ):
+        indicator = symbol
+    symbol = _symbol_or_run_ticker(symbol, run_ticker)
     indicators = [i.strip().lower() for i in indicator.split(",") if i.strip()]
     results = []
     for ind in indicators:
@@ -75,6 +101,7 @@ def get_verified_market_snapshot(
         int, "number of recent trading rows to include for sanity-checking"
     ] = 30,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_ticker: Annotated[str, InjectedState("company_of_interest")] = "",
 ) -> str:
     """Deterministic verification snapshot for exact market-data claims.
 
@@ -83,6 +110,7 @@ def get_verified_market_snapshot(
     price levels, Bollinger bands, RSI, MACD, moving averages, support /
     resistance, or historical comparisons, and treat it as the source of truth.
     """
+    symbol = _symbol_or_run_ticker(symbol, run_ticker)
     return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
 
 
