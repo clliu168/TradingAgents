@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
+import pandas as pd
 import streamlit as st
 
 from webapp.jobs import DATA_DIR
@@ -65,17 +66,62 @@ def ago(dt: datetime | None) -> str:
     return dt.astimezone().strftime("%Y-%m-%d")
 
 
+SENTIMENT_ICON = {"偏多": "🔴 偏多", "偏空": "🟢 偏空", "中性": "⚪ 中性"}
+
+
+def _render_summary(res: dict) -> None:
+    st.markdown(f"**摘要**：{res.get('summary', '')}")
+    if res.get("points"):
+        st.markdown("**重點**\n" + "\n".join(f"- {p}" for p in res["points"]))
+    extra = []
+    if res.get("impact"):
+        extra.append(f"**可能影響**：{res['impact']}")
+    if res.get("sentiment"):
+        extra.append(f"**語氣**：{SENTIMENT_ICON.get(res['sentiment'], res['sentiment'])}")
+    if res.get("tickers"):
+        extra.append("**相關代碼**：" + "、".join(res["tickers"]))
+    if extra:
+        st.markdown("　｜　".join(extra))
+    st.caption(f"AI 整理（依據：{res.get('source', '')}），可能有誤，請以原文為準。")
+
+
 def news_list(articles: list[dict], limit: int = 12, key: str = "news") -> None:
+    """Article cards; each has an AI summary + key points (cached per article)."""
+    from webapp import articles as art
+
     if not articles:
         st.info("目前抓不到相關新聞。")
         return
-    for a in articles[:limit]:
+    shown = articles[:limit]
+    todo = [a for a in shown if not art.cached(a.get("link") or a["title"])]
+    if todo and st.button(f"🤖 為本頁 {len(todo)} 篇文章產生摘要與重點", key=f"batch_{key}",
+                          help="逐篇讀取原文後用 quick_think 模型整理；結果會存起來，同一篇不會重複計費"):
+        bar = st.progress(0.0, text="整理中…")
+        llm = art._llm()
+        for i, a in enumerate(todo, 1):
+            try:
+                art.summarize(a, llm=llm)
+            except Exception as exc:  # noqa: BLE001
+                st.warning(f"「{a['title'][:40]}…」整理失敗：{exc}")
+            bar.progress(i / len(todo), text=f"整理中… {i}/{len(todo)}")
+        bar.empty()
+    for i, a in enumerate(shown):
         with st.container(border=True):
             title = a["title"]
             st.markdown(f"**[{title}]({a['link']})**" if a.get("link") else f"**{title}**")
             st.caption(f"{a.get('publisher', '')}　·　{ago(a.get('pub_date'))}")
-            if a.get("summary"):
-                st.write(a["summary"][:400] + ("…" if len(a["summary"]) > 400 else ""))
+            res = art.cached(a.get("link") or title)
+            if res:
+                _render_summary(res)
+            else:
+                if a.get("summary"):
+                    st.write(a["summary"][:300] + ("…" if len(a["summary"]) > 300 else ""))
+                if st.button("🤖 摘要與重點", key=f"sum_{key}_{i}"):
+                    with st.spinner("讀取原文並整理中…"):
+                        try:
+                            _render_summary(art.summarize(a))
+                        except Exception as exc:  # noqa: BLE001
+                            st.warning(f"整理失敗：{exc}")
 
 
 def ai_digest_block(articles: list[dict], topic: str, key: str) -> None:
@@ -95,6 +141,43 @@ def ai_digest_block(articles: list[dict], topic: str, key: str) -> None:
     if st.session_state.get(state_key):
         with st.container(border=True):
             st.markdown(st.session_state[state_key])
+
+
+@st.dialog("走勢圖", width="large")
+def chart_dialog(ticker: str, name: str | None = None, allow_open: bool = True) -> None:
+    """Full time-series view for an index or a stock, opened from a card or a table row."""
+    from webapp import charts, data
+    from webapp.indicators import add_indicators
+
+    if not name:
+        info = data.profile(ticker) if not ticker.startswith("^") else {}
+        name = info.get("longName") or info.get("shortName") or ticker
+    st.markdown(f"### {name}（{ticker}）" if name != ticker else f"### {ticker}")
+    c1, c2, c3 = st.columns([2, 2, 3])
+    period = c1.selectbox("期間", list(data.PERIOD_DAYS), index=3, key=f"dlg_p_{ticker}")
+    style = c2.radio("圖型", ["K 線", "折線"], horizontal=True, key=f"dlg_s_{ticker}")
+    mas = c3.multiselect("均線", ["SMA20", "SMA60", "SMA240"], default=["SMA20", "SMA60"],
+                         format_func=lambda s: s.replace("SMA", "MA"), key=f"dlg_m_{ticker}")
+    hist = data.history(ticker, data.PERIOD_DAYS[period])
+    if hist.empty:
+        st.error("抓不到這個代碼的歷史資料。")
+        return
+    ind = add_indicators(hist)
+    cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=data.PERIOD_DAYS[period])
+    view = ind[ind.index >= cutoff]
+    first, last = view["Close"].iloc[0], view["Close"].iloc[-1]
+    m = st.columns(4)
+    m[0].metric("最新", f"{last:,.2f}")
+    m[1].metric(f"{period}漲跌", fmt_pct(last / first - 1))
+    m[2].metric("期間最高", f"{view['High'].max():,.2f}")
+    m[3].metric("期間最低", f"{view['Low'].min():,.2f}")
+    if style == "K 線":
+        fig = charts.price_chart(view, "", mas, False, [])
+    else:
+        fig = charts.line_chart(view, mas)
+    st.plotly_chart(fig, width="stretch", key=f"dlg_c_{ticker}")
+    if allow_open and st.button("📊 開啟完整個股分析", key=f"dlg_o_{ticker}"):
+        open_stock(ticker)
 
 
 def open_stock(ticker: str) -> None:

@@ -77,3 +77,42 @@ def test_page_renders(page, monkeypatch, tmp_path):
         at.switch_page(page)
         at.run()
     assert not at.exception, at.exception
+
+
+def test_extract_text_keeps_article_paragraphs():
+    from webapp.articles import extract_text
+
+    html = ("<html><body><nav><p>" + "menu link " * 10 + "</p></nav><article>"
+            "<p>" + "TSMC raised its revenue outlook for the year on strong AI demand. " * 2 + "</p>"
+            "<p>short</p><script>var x = 1;</script></article><footer><p>" + "copyright " * 10 + "</p></footer>"
+            "</body></html>")
+    text = extract_text(html)
+    assert "TSMC raised" in text and "menu" not in text and "copyright" not in text and "short" not in text
+
+
+def test_parse_json_from_model_reply():
+    from webapp.articles import _parse_json
+
+    reply = 'Sure:\n```json\n{"summary": "摘要", "points": ["a", "b"], "tickers": ["2330.TW"], ' \
+            '"impact": "x", "sentiment": "中性"}\n```'
+    data_ = _parse_json(reply)
+    assert data_["summary"] == "摘要" and data_["points"] == ["a", "b"]
+
+
+def test_summary_is_cached(monkeypatch, tmp_path):
+    from webapp import articles
+
+    monkeypatch.setattr(articles, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(data, "DEMO", False)
+    monkeypatch.setattr(articles, "fetch_text", lambda link: "body " * 100)
+    calls = []
+
+    class FakeLLM:
+        def invoke(self, prompt):
+            calls.append(prompt)
+            return type("R", (), {"content": '{"summary": "s", "points": ["p"], "sentiment": "偏多"}'})()
+
+    a = {"title": "T", "link": "https://x/1", "publisher": "P"}
+    assert articles.summarize(a, llm=FakeLLM())["source"] == "全文"
+    assert articles.summarize(a, llm=FakeLLM())["summary"] == "s"
+    assert len(calls) == 1

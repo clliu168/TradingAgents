@@ -31,6 +31,23 @@ INDICES = {
     "^TNX": "美國 10 年期公債殖利率",
 }
 
+# Yahoo serves ^TWOII quotes but often no history; fall back to the 富櫃50 ETF.
+INDEX_PROXIES = {"^TWOII": "006201.TWO"}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def resolve_index(sym: str) -> str:
+    """The symbol that actually has price history: the index, else its proxy."""
+    if DEMO or sym not in INDEX_PROXIES:
+        return sym
+    return sym if not history(sym, 45, warmup=0).empty else INDEX_PROXIES[sym]
+
+
+def index_history(sym: str, days: int) -> tuple[str, pd.DataFrame]:
+    used = resolve_index(sym)
+    return used, history(used, days, warmup=0)
+
+
 PERIOD_DAYS = {"1 個月": 31, "3 個月": 92, "6 個月": 183, "1 年": 366, "2 年": 731, "5 年": 1827}
 
 
@@ -60,7 +77,10 @@ def history(ticker: str, days: int, warmup: int = 260) -> pd.DataFrame:
     import yfinance as yf
 
     start = (datetime.now() - timedelta(days=days + int(warmup * 1.5))).strftime("%Y-%m-%d")
-    df = yf.Ticker(ticker).history(start=start, auto_adjust=True)
+    try:
+        df = yf.Ticker(ticker).history(start=start, auto_adjust=True)
+    except Exception:  # noqa: BLE001 — an unknown or unserved symbol reads as no data
+        return pd.DataFrame()
     if df.empty:
         return df
     df.index = pd.to_datetime(df.index).tz_localize(None)
@@ -161,8 +181,23 @@ def _sorted_unique(items: list[dict]) -> list[dict]:
     return sorted(out, key=lambda a: a.get("pub_date") or far_past, reverse=True)
 
 
+# Tickers whose own news feed is added to a market tab (search alone skews to US stories).
+MARKET_NEWS_TICKERS = {
+    "台股": ("2330.TW", "2454.TW", "2317.TW", "TSM", "^TWII"),
+    "美股": ("^GSPC", "SPY", "QQQ"),
+    "總經與地緣": (),
+}
+
+
+def market_news(topic: str) -> list[dict]:
+    items = list(search_news(MARKET_NEWS_QUERIES[topic]))
+    for t in MARKET_NEWS_TICKERS.get(topic, ()):
+        items += ticker_news(t, 10)
+    return _sorted_unique(items)
+
+
 MARKET_NEWS_QUERIES = {
-    "台股": ("Taiwan stock market TAIEX", "TSMC Taiwan semiconductor", "Taiwan economy exports"),
+    "台股": ("Taiwan stock market TAIEX", "Taiwan stocks Taipei", "Taiwan economy exports central bank"),
     "美股": ("stock market today", "Federal Reserve interest rates", "Nasdaq tech stocks earnings"),
     "總經與地緣": ("inflation CPI jobs report", "oil prices OPEC", "US China trade tariffs"),
 }

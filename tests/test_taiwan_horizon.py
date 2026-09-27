@@ -8,7 +8,7 @@ from tradingagents.graph.settlement import resolve_benchmark, resolve_holding_da
 
 def test_taiwan_suffixes_resolve_to_taiwan_indices():
     assert resolve_benchmark("2330.TW", DEFAULT_CONFIG) == "^TWII"
-    assert resolve_benchmark("6488.TWO", DEFAULT_CONFIG) == "^TWOII"
+    assert resolve_benchmark("6488.TWO", DEFAULT_CONFIG) == "006201.TWO"
     assert resolve_benchmark("0050.tw", DEFAULT_CONFIG) == "^TWII"
 
 

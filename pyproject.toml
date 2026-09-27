@@ -32,6 +32,8 @@ dependencies = [
 web = [
     "streamlit>=1.50",
     "plotly>=5.20",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
 ]
 dev = [
     "ruff>=0.15",

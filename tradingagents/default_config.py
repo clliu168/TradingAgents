@@ -176,7 +176,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
-        ".TWO": "^TWOII",      # Taipei Exchange / TPEx (OTC Index)
+        # TPEx: Yahoo serves no history for ^TWOII, so the 富櫃50 ETF stands in.
+        ".TWO": "006201.TWO",  # Taipei Exchange / TPEx (Yuanta GreTai 50 ETF)
         ".TW":  "^TWII",       # Taiwan Stock Exchange (TAIEX)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },

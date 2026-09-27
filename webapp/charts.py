@@ -95,3 +95,22 @@ def sparkline(series: pd.Series, up: bool) -> go.Figure:
     fig.update_layout(height=60, margin={"l": 0, "r": 0, "t": 0, "b": 0}, showlegend=False,
                       xaxis={"visible": False}, yaxis={"visible": False, "range": [lo - pad, hi + pad]})
     return fig
+
+
+def line_chart(df: pd.DataFrame, mas: list[str]) -> go.Figure:
+    """Close price as a line (with optional moving averages) over a volume panel."""
+    up = df["Close"].iloc[-1] >= df["Close"].iloc[0]
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.78, 0.22])
+    fig.add_trace(go.Scatter(x=df.index, y=df["Close"], name="收盤", line={"width": 2, "color": UP if up else DOWN},
+                             hovertemplate="%{y:,.2f}"), row=1, col=1)
+    for ma in mas:
+        if ma in df:
+            fig.add_trace(go.Scatter(x=df.index, y=df[ma], name=ma.replace("SMA", "MA"),
+                                     line={"width": 1.2, "color": MA_COLORS.get(ma)}), row=1, col=1)
+    if df["Volume"].fillna(0).sum() > 0:
+        fig.add_trace(go.Bar(x=df.index, y=df["Volume"], name="成交量", marker_color="#94a3b8", showlegend=False),
+                      row=2, col=1)
+    fig.update_layout(height=520, margin={"l": 10, "r": 10, "t": 30, "b": 10}, hovermode="x unified",
+                      legend={"orientation": "h", "y": 1.02, "x": 0, "yanchor": "bottom"})
+    fig.update_xaxes(rangebreaks=[{"bounds": ["sat", "mon"]}])
+    return fig
