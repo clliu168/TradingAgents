@@ -17,6 +17,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_INVESTMENT_HORIZON":   "investment_horizon",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
@@ -153,9 +154,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # based on the ticker's exchange suffix. SPY remains the US default
     # so the reflection label keeps reading "Alpha vs SPY" for US tickers
     # while non-US tickers get their regional index automatically.
+    # Investment horizon the agents write for: "short" (days to weeks, the
+    # framework's original trading setting) or "long" (months to years, for
+    # position building). It is stated to every agent through the instrument
+    # context and sets the default outcome window below.
+    "investment_horizon": "short",
     # Trading days after the analysis date over which a decision's outcome is
-    # measured, for reflection and for the backtest figures.
-    "holding_period_days": 5,
+    # measured, for reflection and for the backtest figures. None follows the
+    # horizon: ``horizon_holding_days[investment_horizon]``.
+    "holding_period_days": None,
+    "horizon_holding_days": {"short": 5, "long": 63},
     "benchmark_ticker": None,
     "benchmark_map": {
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
@@ -168,6 +176,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
+        ".TWO": "^TWOII",      # Taipei Exchange / TPEx (OTC Index)
+        ".TW":  "^TWII",       # Taiwan Stock Exchange (TAIEX)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
 })

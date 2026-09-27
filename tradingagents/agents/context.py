@@ -119,7 +119,7 @@ def build_instrument_context(
     context = (
         f"The {instrument_label} to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
+        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `.TW`, `.TWO`, `-USD`)."
     )
 
     details = []
@@ -157,6 +157,34 @@ def build_instrument_context(
             "assume company fundamentals are available."
         )
     return context
+
+
+_HORIZON_INSTRUCTIONS = {
+    "short": (
+        " Investment horizon: SHORT-TERM (days to a few weeks). Weight price "
+        "action, momentum, near-term catalysts and news flow; state entry, "
+        "stop-loss and exit levels, and a time horizon of weeks, not months."
+    ),
+    "long": (
+        " Investment horizon: LONG-TERM (roughly 6 months to several years). "
+        "Weight business quality, competitive position, earnings growth, "
+        "balance sheet and valuation against the company's own history and "
+        "peers; treat short-term technical signals and news only as timing "
+        "input for building or trimming a position gradually, and do not "
+        "recommend selling a sound long-term holding on short-term noise. "
+        "State the time horizon in months or years."
+    ),
+}
+
+
+def build_horizon_instruction(horizon: str | None) -> str:
+    """Sentence telling every agent which investment horizon to write for.
+
+    Returns an empty string for an unknown or empty horizon so a caller that
+    never set one keeps the framework's original prompts.
+    """
+    key = str(horizon or "").strip().lower()
+    return _HORIZON_INSTRUCTIONS.get(key, "")
 
 
 def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:

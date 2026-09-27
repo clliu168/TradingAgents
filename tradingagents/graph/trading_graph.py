@@ -6,7 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
+from tradingagents.agents.context import (
+    build_horizon_instruction,
+    build_instrument_context,
+    resolve_instrument_identity,
+)
 from tradingagents.agents.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.date_window import get_current_date
@@ -125,7 +129,8 @@ class TradingAgentsGraph:
         graph regardless of entry point.
         """
         identity = resolve_instrument_identity(ticker)
-        return build_instrument_context(ticker, asset_type, identity, curr_date)
+        context = build_instrument_context(ticker, asset_type, identity, curr_date)
+        return context + build_horizon_instruction(self.config.get("investment_horizon"))
 
     def _memory_as_of(self, trade_date) -> str | None:
         """Point-in-time cutoff for past-context lessons (#1251).

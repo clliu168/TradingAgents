@@ -35,6 +35,22 @@ def resolve_benchmark(ticker: str, config: dict) -> str:
     return benchmark_map.get("", "SPY")
 
 
+def resolve_holding_days(config: dict) -> int:
+    """Trading days over which a decision's outcome is measured.
+
+    An explicit ``holding_period_days`` wins; otherwise the window follows the
+    configured ``investment_horizon`` (5 days for short-term calls, about a
+    quarter for long-term ones), so a months-long thesis is not judged on a
+    week of prices.
+    """
+    explicit = config.get("holding_period_days")
+    if explicit:
+        return int(explicit)
+    horizon = str(config.get("investment_horizon") or "short").strip().lower()
+    by_horizon = config.get("horizon_holding_days") or {}
+    return int(by_horizon.get(horizon, by_horizon.get("short", 5)))
+
+
 def fetch_returns(
     ticker: str, trade_date: str, holding_days: int = 5,
     benchmark: str = "SPY",
@@ -99,7 +115,7 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict) -> None:
     updates = []
     for entry in pending:
         raw, alpha, days, resolution_date = fetch_returns(
-            ticker, entry["date"], config.get("holding_period_days", 5),
+            ticker, entry["date"], resolve_holding_days(config),
             benchmark=benchmark,
         )
         if raw is None:
