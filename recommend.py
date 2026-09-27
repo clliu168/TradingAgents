@@ -73,6 +73,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Screening {len(universe)} symbols as of {args.date} ...", flush=True)
     table = build_feature_table(universe, args.date)
     print(f"{len(table)} symbols have enough history and liquidity.", flush=True)
+    if table.empty:
+        print("ERROR: no price data could be downloaded. Check the network connection "
+              "(Yahoo Finance) and try again.", flush=True)
+        return 2
 
     lines = [
         f"# 選股建議：{args.date}",

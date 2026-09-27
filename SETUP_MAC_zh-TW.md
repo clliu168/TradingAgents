@@ -65,6 +65,36 @@ python recommend.py --top 2 --horizon long --markets TW
 
 注意：基本面欄位取的是 Yahoo 目前的資料，不是當時的資料，所以只適合用在「今天」的分析，不能拿來做歷史回測。
 
+## Web 介面
+
+第一次使用要先安裝網頁套件：
+
+```bash
+cd ~/Projects/TradingAgents
+source .venv/bin/activate
+uv pip install -e ".[web]"
+```
+
+之後每次啟動：
+
+```bash
+cd ~/Projects/TradingAgents
+source .venv/bin/activate
+streamlit run webapp/app.py
+```
+
+瀏覽器會自動打開 http://localhost:8501 ；關閉時在終端機按 `Ctrl+C`。介面只綁在本機（localhost），同一個網路上的其他人連不進來。
+
+介面有五個頁面：
+
+- **大盤總覽**：台股加權、櫃買、S&P 500、Nasdaq、道瓊、費半、VIX、美元台幣、美債殖利率的最新點數與走勢，加上指數報酬比較、自選股快覽和市場頭條。
+- **個股分析**：K 線加均線、布林通道、成交量，副圖可選 MACD、RSI、KD；另外有技術面訊號、選股模型對這檔的讀法、基本面、公司簡介、新聞，以及歷次 AI 報告。也可以在這一頁直接叫 AI 團隊分析這檔股票。
+- **新聞**：台股、美股、總經與地緣、自選股四類新聞，附原文連結；可以用 AI 做中文重點整理（會產生少量 API 費用）。
+- **產生報告**：選股建議或指定個股分析都在背景執行，頁面上即時顯示進度，也可以中途停止。
+- **報告與建議**：最新一次的建議個股表，點一列就能看理由；所有報告都可以瀏覽和下載。
+
+左側欄可以編輯自選股，台股只打代號就好（例如 2330、0050）。只想看看介面、不抓真實資料的話，可以用 `TA_WEB_DEMO=1 streamlit run webapp/app.py` 開啟模擬資料模式。
+
 ## 已知限制
 
 - 台股的新聞和社群情緒來源（Yahoo、StockTwits、Reddit）大多是英文，資料明顯比美股少。

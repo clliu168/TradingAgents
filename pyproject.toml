@@ -28,6 +28,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Web dashboard: streamlit run webapp/app.py
+web = [
+    "streamlit>=1.50",
+    "plotly>=5.20",
+]
 dev = [
     "ruff>=0.15",
     "pytest>=8.0",
