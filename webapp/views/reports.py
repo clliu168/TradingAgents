@@ -2,9 +2,10 @@ import pandas as pd
 import streamlit as st
 
 from webapp.services import list_reports, parse_recommendations, split_report_sections
-from webapp.ui import open_stock
+from webapp.ui import open_stock, page_timestamp
 
 st.title("📑 報告與建議")
+page_timestamp()
 
 reports = list_reports()
 recs = [r for r in reports if r.kind == "選股建議"]

@@ -7,6 +7,7 @@ from webapp.indicators import add_indicators, signals
 from webapp.services import RESULTS_DIR
 from webapp.ui import (
     ai_digest_block,
+    fmt_bar_date,
     fmt_num,
     fmt_pct,
     load_watchlist,
@@ -39,6 +40,8 @@ name = info.get("longName") or info.get("shortName") or ticker
 last, prev = hist["Close"].iloc[-1], hist["Close"].iloc[-2]
 
 st.subheader(f"{name}（{ticker}）")
+st.caption(f"📅 最新資料：{fmt_bar_date(hist.index[-1])}，漲跌比較 {hist.index[-2]:%Y-%m-%d}　"
+           f"｜ 期間：{view.index[0]:%Y-%m-%d} ～ {view.index[-1]:%Y-%m-%d}")
 m = st.columns(6)
 m[0].metric("收盤", f"{last:,.2f}", fmt_pct(last / prev - 1), delta_color="inverse")
 m[1].metric("期間漲跌", fmt_pct(view["Close"].iloc[-1] / view["Close"].iloc[0] - 1))

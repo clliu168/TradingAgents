@@ -3,9 +3,10 @@ from datetime import date, timedelta
 import streamlit as st
 
 from webapp import jobs
-from webapp.ui import load_watchlist, normalize_ticker
+from webapp.ui import load_watchlist, normalize_ticker, page_timestamp
 
 st.title("🤖 產生報告")
+page_timestamp()
 st.caption("分析會在背景執行，關掉這個頁面也會繼續跑。每檔每種期間約 11 次 LLM 呼叫，會產生 API 費用。")
 
 HORIZONS = {"both": "短線 + 中長期", "short": "短線", "long": "中長期"}

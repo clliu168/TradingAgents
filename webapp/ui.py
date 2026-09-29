@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -34,6 +35,27 @@ def normalize_ticker(raw: str) -> str:
     if t.isdigit() and (len(t) == 4 or (t.startswith("00") and len(t) in (5, 6))):
         t += ".TW"
     return t
+
+
+TAIPEI = ZoneInfo("Asia/Taipei")
+_WEEKDAYS = "一二三四五六日"
+
+
+def now_taipei() -> datetime:
+    return datetime.now(TAIPEI)
+
+
+def fmt_bar_date(ts) -> str:
+    """Date of a daily bar, e.g. '2026-09-26（五）'; today's bar is flagged as possibly intraday."""
+    d = pd.Timestamp(ts).date()
+    label = f"{d:%Y-%m-%d}（{_WEEKDAYS[d.weekday()]}）"
+    if d == now_taipei().date():
+        label += "・今日，盤中可能未收盤"
+    return label
+
+
+def page_timestamp() -> None:
+    st.caption(f"頁面更新：{now_taipei():%Y-%m-%d %H:%M}（台北時間）・行情約每 10 分鐘更新・資料來源 Yahoo Finance，可能延遲")
 
 
 def fmt_pct(x, digits: int = 2) -> str:
@@ -166,6 +188,7 @@ def chart_dialog(ticker: str, name: str | None = None, allow_open: bool = True) 
     cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=data.PERIOD_DAYS[period])
     view = ind[ind.index >= cutoff]
     first, last = view["Close"].iloc[0], view["Close"].iloc[-1]
+    st.caption(f"期間：{view.index[0]:%Y-%m-%d} ～ {fmt_bar_date(view.index[-1])}")
     m = st.columns(4)
     m[0].metric("最新", f"{last:,.2f}")
     m[1].metric(f"{period}漲跌", fmt_pct(last / first - 1))
