@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the TradingAgents daily update after the US close (Taipei time)
+
+[Timer]
+# Tue–Sat 06:30 Taipei: after Monday–Friday US closes (04:00/05:00 Taipei),
+# with Taiwan's previous session also closed. Picks are dated the last weekday.
+OnCalendar=Tue..Sat *-*-* 06:30:00 Asia/Taipei
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

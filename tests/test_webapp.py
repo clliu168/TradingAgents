@@ -116,3 +116,27 @@ def test_summary_is_cached(monkeypatch, tmp_path):
     assert articles.summarize(a, llm=FakeLLM())["source"] == "全文"
     assert articles.summarize(a, llm=FakeLLM())["summary"] == "s"
     assert len(calls) == 1
+
+
+def test_daily_records_job_and_prefetches(monkeypatch, tmp_path):
+    import subprocess
+
+    from webapp import articles, daily
+
+    monkeypatch.setattr(daily, "JOBS_DIR", tmp_path / "jobs")
+    monkeypatch.setattr(jobs, "JOBS_DIR", tmp_path / "jobs")
+    monkeypatch.setattr(articles, "CACHE_DIR", tmp_path / "sum")
+    monkeypatch.setattr(data, "DEMO", True)
+    seen = {}
+
+    def fake_call(cmd, cwd, stdout, stderr):
+        seen["cmd"] = cmd
+        stdout.write("Written to recommendations/recommendations_x.md\n")
+        return 0
+
+    monkeypatch.setattr(subprocess, "call", fake_call)
+    assert daily.main(["--top", "5", "--news", "2"]) == 0
+    assert seen["cmd"][-6:] == ["--horizon", "both", "--markets", "TW", "US", "--top", "5"][-6:]
+    listed = jobs.list_jobs()
+    assert len(listed) == 1 and listed[0]["status"] == "完成" and "每日自動選股" in listed[0]["label"]
+    assert any((tmp_path / "sum").glob("*.json"))

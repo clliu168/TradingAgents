@@ -1,0 +1,15 @@
+[Unit]
+Description=TradingAgents daily update (AI stock picks + news summaries)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@APP_DIR@
+Environment=TZ=Asia/Taipei
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@APP_DIR@/.venv/bin/python -m webapp.daily --top @TOP@
+# 20 full analyses can take a few hours; stop a stuck run before the next day.
+TimeoutStartSec=8h
+Nice=10
