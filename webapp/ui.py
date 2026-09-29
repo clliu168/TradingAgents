@@ -114,9 +114,14 @@ def news_list(articles: list[dict], limit: int = 12, key: str = "news") -> None:
     if not articles:
         st.info("目前抓不到相關新聞。")
         return
+    from webapp.usage import over_budget
+
     shown = articles[:limit]
     todo = [a for a in shown if not art.cached(a.get("link") or a["title"])]
-    if todo and st.button(f"🤖 為本頁 {len(todo)} 篇文章產生摘要與重點", key=f"batch_{key}",
+    blocked, why = over_budget()
+    if blocked and todo:
+        st.caption(f"🚫 AI 摘要暫停：{why}")
+    if todo and not blocked and st.button(f"🤖 為本頁 {len(todo)} 篇文章產生摘要與重點", key=f"batch_{key}",
                           help="逐篇讀取原文後用 quick_think 模型整理；結果會存起來，同一篇不會重複計費"):
         bar = st.progress(0.0, text="整理中…")
         llm = art._llm()
@@ -138,7 +143,7 @@ def news_list(articles: list[dict], limit: int = 12, key: str = "news") -> None:
             else:
                 if a.get("summary"):
                     st.write(a["summary"][:300] + ("…" if len(a["summary"]) > 300 else ""))
-                if st.button("🤖 摘要與重點", key=f"sum_{key}_{i}"):
+                if not blocked and st.button("🤖 摘要與重點", key=f"sum_{key}_{i}"):
                     with st.spinner("讀取原文並整理中…"):
                         try:
                             _render_summary(art.summarize(a))

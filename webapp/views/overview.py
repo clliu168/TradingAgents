@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import streamlit as st
 
-from webapp import charts, data
+from webapp import charts, cnnews, data
 from webapp.indicators import add_indicators
 from webapp.ui import ago, chart_dialog, fmt_bar_date, fmt_pct, load_watchlist, page_timestamp
 
@@ -95,9 +95,9 @@ else:
 
 # --- Headlines ------------------------------------------------------------------
 st.subheader("📰 市場頭條")
-news = sorted(data.market_news("台股")[:5] + data.market_news("美股")[:5],
+news = sorted(cnnews.yahoo_tw("台股")[:4] + data.market_news("台股")[:3] + data.market_news("美股")[:4],
               key=lambda a: a.get("pub_date") or datetime(1970, 1, 1, tzinfo=timezone.utc), reverse=True)
-for a in news[:8]:
+for a in news[:10]:
     st.markdown(f"- [{a['title']}]({a['link']})　<span style='color:gray;font-size:0.85em'>"
                 f"{a.get('publisher', '')} · {ago(a.get('pub_date'))}</span>", unsafe_allow_html=True)
 st.page_link("views/news.py", label="看更多新聞與 AI 重點整理 →", icon="📰")

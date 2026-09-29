@@ -1,0 +1,11 @@
+[Unit]
+Description=Check TradingAgents alerts after the Taiwan close
+
+[Timer]
+# Mon–Fri 14:10 Taipei, after the 13:30 TWSE close. The daily update at 06:30
+# runs the same check after the US close.
+OnCalendar=Mon..Fri *-*-* 14:10:00 Asia/Taipei
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from tradingagents.screener import long_reason, price_features, short_reason
-from webapp import charts, data, jobs
+from webapp import charts, cnnews, data, jobs, twdata
 from webapp.indicators import add_indicators, signals
 from webapp.services import RESULTS_DIR
 from webapp.ui import (
@@ -50,7 +50,8 @@ m[3].metric("市值", fmt_num(info.get("marketCap"), 1))
 m[4].metric("本益比（近四季）", fmt_num(info.get("trailingPE"), 1))
 m[5].metric("殖利率", f"{info['dividendYield']:.2f}%" if info.get("dividendYield") else "—")
 
-tab_chart, tab_fund, tab_news, tab_ai = st.tabs(["📈 走勢與技術分析", "🏢 基本面", "📰 新聞", "🤖 AI 分析"])
+tab_chart, tab_fund, tab_chip, tab_news, tab_ai = st.tabs(
+    ["📈 走勢與技術分析", "🏢 基本面", "🏦 籌碼與營收", "📰 新聞", "🤖 AI 分析"])
 
 with tab_chart:
     o1, o2, o3 = st.columns([3, 1, 3])
@@ -94,10 +95,52 @@ with tab_fund:
             st.write(info["longBusinessSummary"])
     st.caption("基本面為 Yahoo Finance 目前的數值；台股部分欄位可能缺漏。")
 
+with tab_chip:
+    sid = twdata.stock_id(ticker)
+    if not sid:
+        st.info("籌碼（三大法人、融資融券）與月營收只提供台股。美股可看「基本面」分頁。")
+    else:
+        try:
+            flows = twdata.institutional_flows(sid, 60)
+            mg = twdata.margin(sid, 120)
+            rev = twdata.month_revenue(sid, 26)
+            divs = twdata.dividends(sid)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"FinMind 資料抓取失敗：{exc}")
+            st.caption("請確認伺服器 .env 有 FINMIND_TOKEN（到 finmindtrade.com 免費註冊取得），並重新啟動網頁服務。")
+            flows = mg = rev = divs = pd.DataFrame()
+        if not flows.empty:
+            last5, last20 = flows.tail(5).sum(), flows.tail(20).sum()
+            k = st.columns(4)
+            for i, g in enumerate(["外資", "投信", "自營商", "合計"]):
+                if g in flows:
+                    k[i].metric(f"{g} 近 5 日", f"{last5[g]:+,.0f} 張", f"近 20 日 {last20[g]:+,.0f} 張",
+                                delta_color="off")
+            st.plotly_chart(charts.flows_chart(flows), width="stretch")
+            st.caption(f"資料日期：{flows.index[0]:%Y-%m-%d} ～ {flows.index[-1]:%Y-%m-%d}；單位：張（1 張 = 1,000 股），正值為買超。")
+        if not mg.empty:
+            st.plotly_chart(charts.margin_chart(mg), width="stretch")
+        if not rev.empty:
+            last = rev.iloc[-1]
+            k = st.columns(3)
+            k[0].metric(f"{rev.index[-1]:%Y 年 %m 月}營收", f"{last['營收（億）']:,.1f} 億")
+            k[1].metric("年增率", f"{last['年增率']:+.1%}" if pd.notna(last["年增率"]) else "—")
+            k[2].metric("月增率", f"{last['月增率']:+.1%}" if pd.notna(last["月增率"]) else "—")
+            st.plotly_chart(charts.revenue_chart(rev), width="stretch")
+            st.caption(f"最新一期於 {last['公布日']:%Y-%m-%d} 公布。")
+        if not divs.empty:
+            st.markdown("##### 股利與除權息")
+            st.dataframe(divs.head(6), hide_index=True, width="stretch")
+        if not flows.empty or not rev.empty:
+            st.caption("資料來源：FinMind（整理自證交所、櫃買中心、公開資訊觀測站）。")
+
 with tab_news:
-    articles = data.ticker_news(ticker)
-    ai_digest_block(articles, f"{name}（{ticker}）", key=f"stock_{ticker}")
-    news_list(articles, key=f"stock_{ticker}")
+    lang = st.radio("來源", ["全部", "中文", "英文"], horizontal=True, key="stock_news_lang")
+    zh = cnnews.stock_news(ticker) if lang != "英文" else []
+    en = data.ticker_news(ticker) if lang != "中文" else []
+    articles = data._sorted_unique(zh + en)
+    ai_digest_block(articles, f"{name}（{ticker}）", key=f"stock_{ticker}_{lang}")
+    news_list(articles, limit=20, key=f"stock_{ticker}_{lang}")
 
 with tab_ai:
     reports = sorted((RESULTS_DIR / "reports").glob(f"{ticker}_*/complete_report.md"), reverse=True) \

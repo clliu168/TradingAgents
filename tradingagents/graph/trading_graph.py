@@ -130,6 +130,10 @@ class TradingAgentsGraph:
         """
         identity = resolve_instrument_identity(ticker)
         context = build_instrument_context(ticker, asset_type, identity, curr_date)
+        if curr_date and self.config.get("taiwan_brief", True):
+            from tradingagents.dataflows.vendors.finmind import taiwan_brief
+
+            context += taiwan_brief(ticker, str(curr_date))
         return context + build_horizon_instruction(self.config.get("investment_horizon"))
 
     def _memory_as_of(self, trade_date) -> str | None:

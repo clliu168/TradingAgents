@@ -76,10 +76,12 @@ def ai_digest(articles: list[dict], topic: str) -> str:
     load_dotenv(ROOT / ".env")
     from tradingagents.default_config import DEFAULT_CONFIG
     from tradingagents.llm_clients import build_llm_kwargs, create_llm_client
+    from webapp.usage import UsageRecorder
 
     cfg = dict(DEFAULT_CONFIG)
     llm = create_llm_client(provider=cfg["llm_provider"], model=cfg["quick_think_llm"],
-                            base_url=cfg.get("backend_url"), **build_llm_kwargs(cfg)).get_llm()
+                            base_url=cfg.get("backend_url"),
+                            **build_llm_kwargs(cfg), callbacks=[UsageRecorder("news-digest")]).get_llm()
     lines = []
     for i, a in enumerate(articles[:20], 1):
         when = a["pub_date"].strftime("%m/%d") if a.get("pub_date") else ""

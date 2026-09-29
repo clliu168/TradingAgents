@@ -116,7 +116,9 @@ def _llm():
     load_dotenv(ROOT / ".env")
     from tradingagents.default_config import DEFAULT_CONFIG
     from tradingagents.llm_clients import build_llm_kwargs, create_llm_client
+    from webapp.usage import UsageRecorder
 
     cfg = dict(DEFAULT_CONFIG)
     return create_llm_client(provider=cfg["llm_provider"], model=cfg["quick_think_llm"],
-                             base_url=cfg.get("backend_url"), **build_llm_kwargs(cfg)).get_llm()
+                             base_url=cfg.get("backend_url"),
+                            **build_llm_kwargs(cfg), callbacks=[UsageRecorder("news-summary")]).get_llm()

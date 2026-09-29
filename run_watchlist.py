@@ -29,6 +29,7 @@ load_dotenv()
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
 from tradingagents.portfolio import load_portfolio  # noqa: E402
+from webapp.usage import UsageRecorder, over_budget  # noqa: E402
 
 # Macro headlines the global-news tool searches in addition to the defaults
 # when the ticker trades in Taiwan; the defaults are all US/EU centric.
@@ -81,7 +82,13 @@ def main(argv: list[str] | None = None) -> int:
             ticker = raw.strip().upper()
             print(f"\n=== {ticker} | {horizon} | {args.date} ===", flush=True)
             try:
-                graph = TradingAgentsGraph(config=config_for(ticker, horizon, args.language, base_dir))
+                blocked, why = over_budget()
+                if blocked:
+                    print(f"Budget reached, skipping {ticker}: {why}", flush=True)
+                    rows.append((ticker, horizon, f"SKIPPED: {why}"))
+                    continue
+                graph = TradingAgentsGraph(config=config_for(ticker, horizon, args.language, base_dir),
+                                           callbacks=[UsageRecorder(f"watchlist:{ticker}:{horizon}")])
                 state, signal = graph.propagate(ticker, args.date, portfolio=portfolio)
                 graph.save_reports(state, ticker)
                 rows.append((ticker, horizon, signal))

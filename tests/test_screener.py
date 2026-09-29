@@ -106,7 +106,7 @@ def test_debate_keeps_only_buy_and_overweight(monkeypatch, tmp_path, table):
     import recommend
 
     class FakeGraph:
-        def __init__(self, config):
+        def __init__(self, config, callbacks=None):
             self.horizon = config["investment_horizon"]
 
         def propagate(self, ticker, date, portfolio=None):

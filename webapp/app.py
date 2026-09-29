@@ -17,13 +17,24 @@ from webapp.ui import DISCLAIMER, load_watchlist, normalize_ticker, save_watchli
 
 st.set_page_config(page_title="TradingAgents 投資儀表板", page_icon="📈", layout="wide")
 
-pages = [
-    st.Page("views/overview.py", title="大盤總覽", icon="🌏", default=True),
-    st.Page("views/stock.py", title="個股分析", icon="📊"),
-    st.Page("views/news.py", title="新聞", icon="📰"),
-    st.Page("views/generate.py", title="產生報告", icon="🤖"),
-    st.Page("views/reports.py", title="報告與建議", icon="📑"),
-]
+pages = {
+    "市場": [
+        st.Page("views/overview.py", title="大盤總覽", icon="🌏", default=True),
+        st.Page("views/stock.py", title="個股分析", icon="📊"),
+        st.Page("views/compare.py", title="多檔比較", icon="⚖️"),
+        st.Page("views/news.py", title="新聞", icon="📰"),
+        st.Page("views/calendar.py", title="行事曆", icon="📅"),
+    ],
+    "AI 分析": [
+        st.Page("views/generate.py", title="產生報告", icon="🤖"),
+        st.Page("views/reports.py", title="報告與建議", icon="📑"),
+        st.Page("views/performance.py", title="績效追蹤", icon="🎯"),
+    ],
+    "我的": [
+        st.Page("views/holdings.py", title="我的持倉", icon="💼"),
+        st.Page("views/settings.py", title="設定與費用", icon="⚙️"),
+    ],
+}
 nav = st.navigation(pages)
 
 with st.sidebar:

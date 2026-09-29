@@ -34,6 +34,7 @@ from run_watchlist import config_for  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
 from tradingagents.portfolio import load_portfolio  # noqa: E402
 from tradingagents.screener import UNIVERSES, build_feature_table, screen  # noqa: E402
+from webapp.usage import UsageRecorder, over_budget  # noqa: E402
 
 POSITIVE = {"Buy", "Overweight"}
 HORIZON_LABEL = {"short": "短線（數天到數週）", "long": "中長期（6 個月以上）"}
@@ -96,7 +97,13 @@ def main(argv: list[str] | None = None) -> int:
                 suggested.append((c, None, ""))
                 continue
             try:
-                graph = TradingAgentsGraph(config=config_for(c.ticker, horizon, args.language, base_dir))
+                blocked, why = over_budget()
+                if blocked:
+                    print(f"Budget reached, skipping {c.ticker}: {why}", flush=True)
+                    dropped.append((c, f"未執行：{why}", ""))
+                    continue
+                graph = TradingAgentsGraph(config=config_for(c.ticker, horizon, args.language, base_dir),
+                                           callbacks=[UsageRecorder(f"recommend:{c.ticker}:{horizon}")])
                 state, rating = graph.propagate(c.ticker, args.date, portfolio=portfolio)
                 graph.save_reports(state, c.ticker)
                 decision = state.get("final_trade_decision", "")

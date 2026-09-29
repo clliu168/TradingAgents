@@ -60,19 +60,30 @@ if [ ! -f .env ]; then
 TRADINGAGENTS_LLM_PROVIDER=openai
 TRADINGAGENTS_OUTPUT_LANGUAGE=Traditional Chinese
 SEC_EDGAR_USER_AGENT=Your Name your@email.com
+# Taiwan chips / monthly revenue / dividends (free account at finmindtrade.com)
+FINMIND_TOKEN=
+# Notifications (fill one or both; see the 設定與費用 page)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+#SMTP_HOST=smtp.gmail.com
+#SMTP_PORT=587
+#SMTP_USER=
+#SMTP_PASSWORD=
+#NOTIFY_EMAIL_TO=
 ENV
   echo "Created .env — put your OPENAI_API_KEY in it before the first daily run."
 fi
 chmod 600 .env
 
 say "systemd units"
-for unit in tradingagents-web.service tradingagents-daily.service tradingagents-daily.timer; do
+for unit in tradingagents-web.service tradingagents-daily.service tradingagents-daily.timer \
+            tradingagents-alerts.service tradingagents-alerts.timer; do
   sed -e "s|@USER@|$RUN_USER|g" -e "s|@APP_DIR@|$APP_DIR|g" \
       -e "s|@PORT@|$PORT|g" -e "s|@TOP@|$TOP|g" \
       "deploy/systemd/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
 done
 sudo systemctl daemon-reload
-sudo systemctl enable --now tradingagents-web.service tradingagents-daily.timer
+sudo systemctl enable --now tradingagents-web.service tradingagents-daily.timer tradingagents-alerts.timer
 sudo systemctl restart tradingagents-web.service
 
 say "Check"
@@ -82,7 +93,10 @@ if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/_stcore/health"; then
 else
   echo "Web dashboard did not answer yet; see: journalctl -u tradingagents-web -n 50" >&2
 fi
-systemctl list-timers tradingagents-daily.timer --no-pager || true
+systemctl list-timers 'tradingagents-*' --no-pager || true
+for key in FINMIND_TOKEN TELEGRAM_BOT_TOKEN; do
+  grep -Eq "^$key=.+" .env || echo "Optional: $key is not set in .env (see deploy/README_DEPLOY_zh-TW.md)."
+done
 if ! grep -Eq '^OPENAI_API_KEY=.+' .env; then
   echo
   echo "NOTE: OPENAI_API_KEY is empty in $APP_DIR/.env — edit it (nano $APP_DIR/.env), then:"

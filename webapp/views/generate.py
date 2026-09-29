@@ -2,11 +2,15 @@ from datetime import date, timedelta
 
 import streamlit as st
 
-from webapp import jobs
+from webapp import jobs, portfolio as pfm
 from webapp.ui import load_watchlist, normalize_ticker, page_timestamp
+from webapp.usage import over_budget
 
 st.title("🤖 產生報告")
 page_timestamp()
+_blocked, _why = over_budget()
+if _blocked:
+    st.error(f"🚫 已達 API 費用上限：{_why}。按鈕暫時停用，可到「設定與費用」頁調整。")
 st.caption("分析會在背景執行，關掉這個頁面也會繼續跑。每檔每種期間約 11 次 LLM 呼叫，會產生 API 費用。")
 
 HORIZONS = {"both": "短線 + 中長期", "short": "短線", "long": "中長期"}
@@ -25,12 +29,16 @@ with t1, st.container(border=True):
     d1, d2 = st.columns(2)
     as_of = d1.date_input("分析日期", last_weekday, max_value=date.today())
     screen_only = d2.toggle("只做量化篩選（不呼叫 LLM、免費、約 1–2 分鐘）", value=False)
+    use_pf = d2.checkbox("帶入我的持倉", value=bool(pfm.load()["positions"]), key="pf1",
+                         help="讓 agent 知道您已持有的部位與成本（在「我的持倉」頁設定）")
     n_runs = 0 if screen_only else (2 if horizon == "both" else 1) * len(markets) * top
     st.caption(f"預計 AI 完整分析次數：{n_runs} 次" + ("" if screen_only else "（每次約數分鐘）"))
-    if st.button("開始選股", type="primary", disabled=not markets):
+    if st.button("開始選股", type="primary", disabled=not markets or (_blocked and not screen_only)):
         args = ["--horizon", horizon, "--markets", *markets, "--top", str(top), "--date", as_of.isoformat()]
         if screen_only:
             args.append("--screen-only")
+        if use_pf and (ctx := pfm.context_path_if_any()):
+            args += ["--portfolio", ctx]
         jobs.start("recommend", args, f"選股建議 {HORIZONS[horizon]}・{'/'.join(markets)}・前 {top} 檔"
                    + ("（僅篩選）" if screen_only else ""))
         st.success("已開始，進度在下方。")
@@ -42,11 +50,13 @@ with t2, st.form("watchlist"):
     c1, c2 = st.columns(2)
     horizon2 = c1.selectbox("投資期間", list(HORIZONS), format_func=HORIZONS.get, key="h2")
     as_of2 = c2.date_input("分析日期", last_weekday, max_value=date.today(), key="d2")
-    if st.form_submit_button("開始分析", type="primary"):
+    use_pf2 = st.checkbox("帶入我的持倉", value=bool(pfm.load()["positions"]), key="pf2")
+    if st.form_submit_button("開始分析", type="primary", disabled=_blocked):
         tickers = list(dict.fromkeys(
             chosen + [normalize_ticker(x) for x in extra.replace(",", " ").split() if x.strip()]))
         if tickers:
-            jobs.start("watchlist", [*tickers, "--horizon", horizon2, "--date", as_of2.isoformat()],
+            extra_args = ["--portfolio", ctx] if use_pf2 and (ctx := pfm.context_path_if_any()) else []
+            jobs.start("watchlist", [*tickers, "--horizon", horizon2, "--date", as_of2.isoformat(), *extra_args],
                        f"個股分析 {' '.join(tickers)}（{HORIZONS[horizon2]}）")
             st.success("已開始，進度在下方。")
 

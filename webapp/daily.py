@@ -37,11 +37,32 @@ def run_recommend(args: list[str], label: str) -> int:
     return code
 
 
+def notify_picks(job_dir_code: int) -> None:
+    """Send today's suggestions (or the failure) to the configured channels."""
+    from webapp import jobs, notify
+    from webapp.services import parse_recommendations
+
+    latest = jobs.list_jobs()[0] if jobs.list_jobs() else None
+    out = jobs.output_file(latest["dir"]) if latest else None
+    if job_dir_code != 0 or not out or not out.exists():
+        notify.send("⚠️ TradingAgents 每日選股失敗，請到網頁「產生報告」頁看紀錄。")
+        return
+    rows = parse_recommendations(out.read_text(encoding="utf-8"))
+    if not rows:
+        notify.send(f"📋 TradingAgents 每日選股完成（{out.stem}）：今天沒有候選股通過多空辯論。")
+        return
+    lines = [f"・[{r['期間'].split('（')[0]}] {r['市場']} {r['代碼']} {r['名稱']}：{r['評等']}"
+             + (f"，目標價 {r['目標價']}" if r["目標價"] not in ("", "-") else "") for r in rows]
+    notify.send(f"📋 TradingAgents 每日選股（{out.stem.replace('recommendations_', '')}）\n\n"
+                + "\n".join(lines) + "\n\n詳細理由請看網頁「報告與建議」頁。僅供研究參考，不構成投資建議。",
+                subject="TradingAgents 每日選股")
+
+
 def prefetch_news(per_topic: int) -> None:
-    from webapp import articles, data
+    from webapp import articles, cnnews, data
     from webapp.ui import load_watchlist
 
-    todo = []
+    todo = list(cnnews.yahoo_tw("台股")[:per_topic]) + list(cnnews.yahoo_tw("國際財經")[:per_topic // 2])
     for topic in data.MARKET_NEWS_QUERIES:
         todo += data.market_news(topic)[:per_topic]
     for t in load_watchlist():
@@ -76,17 +97,40 @@ def main(argv: list[str] | None = None) -> int:
     from dotenv import load_dotenv
 
     load_dotenv(ROOT / ".env")
+    from webapp.usage import over_budget
+
     code = 0
+    blocked, why = over_budget()
+    if blocked:
+        print(f"Budget reached, skipping AI picks and news summaries: {why}", flush=True)
+        from webapp import notify
+
+        notify.send(f"⚠️ TradingAgents 每日更新已暫停：{why}。可在網頁「設定與費用」頁調整上限。")
+        return 0
     if args.top > 0:
+        from webapp import portfolio as pfm
+
+        ctx = pfm.context_path_if_any()
         code = run_recommend(
-            ["--horizon", "both", "--markets", *args.markets, "--top", str(args.top)],
+            ["--horizon", "both", "--markets", *args.markets, "--top", str(args.top),
+             *(["--portfolio", ctx] if ctx else [])],
             f"每日自動選股 短線 + 中長期・{'/'.join(args.markets)}・前 {args.top} 檔",
         )
+        try:
+            notify_picks(code)
+        except Exception as exc:  # noqa: BLE001
+            print(f"notify failed: {exc}", flush=True)
     if args.news > 0:
         try:
             prefetch_news(args.news)
         except Exception as exc:  # noqa: BLE001
             print(f"news prefetch failed: {exc}", flush=True)
+    try:
+        from webapp import alerts
+
+        alerts.main([])
+    except Exception as exc:  # noqa: BLE001
+        print(f"alerts failed: {exc}", flush=True)
     return code
 
 

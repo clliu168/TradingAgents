@@ -114,3 +114,60 @@ def line_chart(df: pd.DataFrame, mas: list[str]) -> go.Figure:
                       legend={"orientation": "h", "y": 1.02, "x": 0, "yanchor": "bottom"})
     fig.update_xaxes(rangebreaks=[{"bounds": ["sat", "mon"]}])
     return fig
+
+
+FLOW_COLORS = {"外資": "#2563eb", "投信": "#f59e0b", "自營商": "#9333ea"}
+
+
+def flows_chart(flows: pd.DataFrame) -> go.Figure:
+    """Daily net buy per investor group (stacked bars) with the cumulative total as a line."""
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    for g, color in FLOW_COLORS.items():
+        if g in flows:
+            fig.add_trace(go.Bar(x=flows.index, y=flows[g], name=g, marker_color=color), secondary_y=False)
+    fig.add_trace(go.Scatter(x=flows.index, y=flows["合計"].cumsum(), name="合計累積", line={"color": "#0f172a", "width": 2}),
+                  secondary_y=True)
+    fig.update_layout(barmode="relative", height=380, title={"text": "三大法人每日買賣超（張）", "font": {"size": 15}},
+                      margin={"l": 10, "r": 10, "t": 50, "b": 10}, hovermode="x unified",
+                      legend={"orientation": "h", "y": -0.15})
+    fig.update_yaxes(title_text="當日買賣超（張）", secondary_y=False)
+    fig.update_yaxes(title_text="累積（張）", secondary_y=True, showgrid=False)
+    fig.update_xaxes(rangebreaks=[{"bounds": ["sat", "mon"]}])
+    return fig
+
+
+def margin_chart(mg: pd.DataFrame) -> go.Figure:
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Scatter(x=mg.index, y=mg["融資餘額"], name="融資餘額", line={"color": UP, "width": 2}),
+                  secondary_y=False)
+    fig.add_trace(go.Scatter(x=mg.index, y=mg["融券餘額"], name="融券餘額", line={"color": DOWN, "width": 2}),
+                  secondary_y=True)
+    fig.update_layout(height=320, title={"text": "融資融券餘額（張）", "font": {"size": 15}},
+                      margin={"l": 10, "r": 10, "t": 50, "b": 10}, hovermode="x unified",
+                      legend={"orientation": "h", "y": -0.2})
+    fig.update_yaxes(title_text="融資（張）", secondary_y=False)
+    fig.update_yaxes(title_text="融券（張）", secondary_y=True, showgrid=False)
+    return fig
+
+
+def revenue_chart(rev: pd.DataFrame) -> go.Figure:
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Bar(x=rev.index, y=rev["營收（億）"], name="月營收（億）", marker_color="#94a3b8"), secondary_y=False)
+    fig.add_trace(go.Scatter(x=rev.index, y=rev["年增率"], name="年增率", line={"color": UP, "width": 2}),
+                  secondary_y=True)
+    fig.add_hline(y=0, line={"width": 1, "dash": "dash", "color": "#64748b"}, secondary_y=True)
+    fig.update_layout(height=340, title={"text": "月營收與年增率", "font": {"size": 15}},
+                      margin={"l": 10, "r": 10, "t": 50, "b": 10}, hovermode="x unified",
+                      legend={"orientation": "h", "y": -0.2})
+    fig.update_yaxes(title_text="營收（億元）", secondary_y=False)
+    fig.update_yaxes(title_text="年增率", tickformat="+.0%", secondary_y=True, showgrid=False)
+    return fig
+
+
+def correlation_heatmap(corr: pd.DataFrame) -> go.Figure:
+    fig = go.Figure(go.Heatmap(z=corr.values, x=corr.columns, y=corr.index, zmin=-1, zmax=1,
+                               colorscale="RdBu_r", text=corr.round(2).values, texttemplate="%{text}",
+                               hovertemplate="%{y} × %{x}: %{z:.2f}<extra></extra>"))
+    fig.update_layout(height=120 + 40 * len(corr), title={"text": "週報酬相關係數", "font": {"size": 15}},
+                      margin={"l": 10, "r": 10, "t": 50, "b": 10})
+    return fig
