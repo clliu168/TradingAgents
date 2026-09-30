@@ -14,8 +14,10 @@ PORT="${PORT:-8501}"
 
 say() { printf '\n==> %s\n' "$*"; }
 
-if ! curl -fsS -o /dev/null "http://127.0.0.1:$PORT/_stcore/health"; then
-  echo "The dashboard is not answering on 127.0.0.1:$PORT. Run deploy/install.sh first." >&2
+if ! systemctl is-active --quiet tradingagents-web \
+   || ! curl -fsS -o /dev/null "http://127.0.0.1:$PORT/_stcore/health"; then
+  echo "The TradingAgents web service is not running on 127.0.0.1:$PORT." >&2
+  echo "Check: systemctl status tradingagents-web   (fix, then re-run this script)" >&2
   exit 1
 fi
 

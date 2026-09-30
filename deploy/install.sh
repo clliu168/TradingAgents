@@ -52,6 +52,14 @@ else
 fi
 cd "$APP_DIR"
 
+# If the update just changed this script, restart with the new version (same settings),
+# so a new install.sh never runs half-old, half-new.
+if [ -z "${TA_REEXEC:-}" ] && [ -f deploy/install.sh ] \
+   && ! cmp -s "${BASH_SOURCE[0]}" deploy/install.sh; then
+  say "install.sh was updated; re-running the new version"
+  TA_REEXEC=1 PORT="$PORT" TOP="$TOP" exec bash deploy/install.sh
+fi
+
 say "Python environment"
 [ -d .venv ] || uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -e ".[web]"
