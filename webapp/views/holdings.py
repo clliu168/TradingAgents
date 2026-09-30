@@ -24,13 +24,15 @@ with st.expander("✏️ 編輯持股", expanded=not pf["positions"]):
                "目標比例（%）可留空；有填的會用來提醒再平衡。")
     base = pd.DataFrame(pf["positions"] or [{"ticker": "006208.TW", "shares": 0, "cost": 0, "target": None}],
                         columns=["ticker", "shares", "cost", "target"])
+    # Start every numeric column as float; an all-integer column makes the editor reject decimals.
+    base[["shares", "cost", "target"]] = base[["shares", "cost", "target"]].astype(float)
     edited = st.data_editor(
         base, num_rows="dynamic", width="stretch", key="pf_editor",
         column_config={
             "ticker": st.column_config.TextColumn("代碼", required=True),
-            "shares": st.column_config.NumberColumn("股數", min_value=0, step=1),
-            "cost": st.column_config.NumberColumn("平均成本（原幣）", min_value=0, format="%.2f"),
-            "target": st.column_config.NumberColumn("目標比例 %", min_value=0, max_value=100),
+            "shares": st.column_config.NumberColumn("股數", min_value=0, step=0.0001),
+            "cost": st.column_config.NumberColumn("平均成本（原幣／每股）", min_value=0, step=0.0001),
+            "target": st.column_config.NumberColumn("目標比例 %", min_value=0, max_value=100, step=0.1),
         },
     )
     c1, c2, c3 = st.columns(3)
@@ -42,6 +44,9 @@ with st.expander("✏️ 編輯持股", expanded=not pf["positions"]):
         rows = edited.dropna(subset=["ticker"]).to_dict("records")
         for r in rows:
             r["ticker"] = str(r["ticker"]).strip().upper()
+            for k in ("shares", "cost", "target"):  # blank cells come back as NaN; store them as null
+                if pd.isna(r.get(k)):
+                    r[k] = None
         pfm.save({"cash_twd": cash_twd, "cash_usd": cash_usd, "rebalance_band": band / 100,
                   "positions": [r for r in rows if r["ticker"]]})
         st.success("已儲存")
