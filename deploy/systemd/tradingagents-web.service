@@ -9,7 +9,7 @@ User=@USER@
 WorkingDirectory=@APP_DIR@
 Environment=TZ=Asia/Taipei
 Environment=PYTHONUNBUFFERED=1
-# Bound to 127.0.0.1: reach it through an SSH tunnel, never directly.
+# Bound to 127.0.0.1: reach it through Tailscale serve, the Caddy HTTPS proxy or an SSH tunnel, never directly.
 ExecStart=@APP_DIR@/.venv/bin/streamlit run webapp/app.py --server.address 127.0.0.1 --server.port @PORT@ --server.headless true
 Restart=on-failure
 RestartSec=10

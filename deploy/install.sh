@@ -7,13 +7,18 @@
 #   APP_DIR   where the repo lives            (default: ~/TradingAgents)
 #   REPO_URL  git repository                  (default: your fork)
 #   BRANCH    branch to deploy                (default: taiwan-horizon)
-#   PORT      web port on 127.0.0.1           (default: 8501)
+#   PORT      web port on 127.0.0.1           (default: the installed one, else 8501)
 #   TOP       daily picks per market/horizon  (default: 5)
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$HOME/TradingAgents}"
 REPO_URL="${REPO_URL:-https://github.com/clliu168/TradingAgents.git}"
 BRANCH="${BRANCH:-taiwan-horizon}"
+WEB_UNIT=/etc/systemd/system/tradingagents-web.service
+# Re-runs keep the port of the existing install unless PORT is given explicitly.
+if [ -z "${PORT:-}" ] && [ -f "$WEB_UNIT" ]; then
+  PORT="$(grep -oE -- '--server\.port [0-9]+' "$WEB_UNIT" | awk '{print $2}' || true)"
+fi
 PORT="${PORT:-8501}"
 TOP="${TOP:-5}"
 RUN_USER="$(id -un)"
@@ -87,6 +92,14 @@ sudo systemctl enable --now tradingagents-web.service tradingagents-daily.timer 
 sudo systemctl restart tradingagents-web.service
 
 say "Check"
+if command -v caddy >/dev/null && [ -f /etc/caddy/tradingagents.caddy ]; then
+  # Keep the HTTPS proxy pointed at the current port.
+  sudo sed -i -E "s|reverse_proxy 127\.0\.0\.1:[0-9]+|reverse_proxy 127.0.0.1:$PORT|" /etc/caddy/tradingagents.caddy
+  sudo systemctl reload caddy || true
+fi
+if command -v tailscale >/dev/null && tailscale serve status 2>/dev/null | grep -q "127.0.0.1"; then
+  sudo tailscale serve --bg --https=443 "http://127.0.0.1:$PORT" >/dev/null || true
+fi
 sleep 5
 if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/_stcore/health"; then
   echo "Web dashboard is up on 127.0.0.1:$PORT"
