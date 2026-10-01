@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from tradingagents.dataflows.tw_names import zh_name
 from webapp.jobs import ROOT
 
 RESULTS_DIR = Path(os.getenv("TRADINGAGENTS_RESULTS_DIR") or Path.home() / ".tradingagents" / "logs")
@@ -48,6 +49,7 @@ def parse_recommendations(text: str) -> list[dict]:
         m = _ROW.match(line.strip())
         if m:
             market, ticker, name, rating, target, period = m.groups()
+            name = zh_name(ticker) or name  # older reports carry Yahoo's English name for Taiwan stocks
             rows.append({"期間": horizon, "市場": market, "代碼": ticker, "名稱": name,
                          "評等": rating, "目標價": target, "持有期間": period})
     return rows

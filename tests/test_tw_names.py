@@ -89,3 +89,18 @@ def test_alert_messages_include_chinese_name():
     rules = {**alerts.DEFAULT_RULES, "daily_move_pct": 5.0}
     msgs = [m for _, m in alerts.check_ticker("2330.TW", hist, rules)]
     assert any("2330.TW 台積電" in m for m in msgs), msgs
+
+
+def test_old_reports_show_chinese_names():
+    from webapp.services import parse_recommendations
+
+    md = "\n".join([
+        "## 短線（數天到數週）",
+        "| 市場 | 代碼 | 名稱 | 評等 | 目標價 | 持有期間 |",
+        "| --- | --- | --- | --- | --- | --- |",
+        "| 台股 | 3105.TWO | WIN SEMICONDUCTORS CORP | Overweight | not provided | 1-3 週 |",
+        "| 台股 | 2360.TW | CHROMA ATE INC | Overweight | - | 6 個月 |",
+        "| 美股 | NVDA | NVIDIA Corporation | Overweight | - | 6 個月 |",
+    ])
+    names = {r["代碼"]: r["名稱"] for r in parse_recommendations(md)}
+    assert names == {"3105.TWO": "穩懋", "2360.TW": "致茂", "NVDA": "NVIDIA Corporation"}
