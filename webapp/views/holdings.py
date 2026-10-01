@@ -3,7 +3,7 @@ import plotly.express as px
 import streamlit as st
 
 from webapp import data, portfolio as pfm
-from webapp.ui import fmt_num, page_timestamp
+from webapp.ui import display_name, fmt_num, page_timestamp
 
 st.title("💼 我的持倉")
 page_timestamp()
@@ -57,6 +57,7 @@ if not pf["positions"]:
     st.stop()
 
 df = pfm.valuate(pf, last_price, usd_twd)
+df.insert(1, "名稱", [display_name(t) if not str(t).startswith("現金") else "" for t in df["代碼"]])
 total = df["市值（台幣）"].fillna(0).sum()
 stocks = df[~df["代碼"].str.startswith("現金")]
 cost_twd = sum(r["成本價"] * r["股數"] * (usd_twd if r["幣別"] == "USD" else 1)

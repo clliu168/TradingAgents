@@ -29,6 +29,24 @@ def save_watchlist(tickers: list[str]) -> None:
     WATCHLIST_FILE.write_text(json.dumps(tickers, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+def display_name(ticker: str) -> str:
+    """Short company name: Chinese for Taiwan tickers, Yahoo's short name otherwise ('' if unknown)."""
+    from tradingagents.dataflows.tw_names import zh_name
+
+    if str(ticker).startswith("^") or "=" in str(ticker):
+        return ""
+    name = zh_name(ticker)
+    if name:
+        return name
+    try:
+        from webapp import data
+
+        info = data.profile(ticker)
+        return str(info.get("shortName") or info.get("longName") or "")
+    except Exception:  # noqa: BLE001 — a name is nice to have, never required
+        return ""
+
+
 def normalize_ticker(raw: str) -> str:
     t = raw.strip().upper()
     # A bare 4-digit Taiwan code, or a 5-6 digit ETF code starting with 00, means TWSE.
@@ -177,8 +195,7 @@ def chart_dialog(ticker: str, name: str | None = None, allow_open: bool = True) 
     from webapp.indicators import add_indicators
 
     if not name:
-        info = data.profile(ticker) if not ticker.startswith("^") else {}
-        name = info.get("longName") or info.get("shortName") or ticker
+        name = display_name(ticker) or ticker
     st.markdown(f"### {name}（{ticker}）" if name != ticker else f"### {ticker}")
     c1, c2, c3 = st.columns([2, 2, 3])
     period = c1.selectbox("期間", list(data.PERIOD_DAYS), index=3, key=f"dlg_p_{ticker}")

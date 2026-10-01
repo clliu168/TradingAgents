@@ -27,6 +27,17 @@ def _blank_settings_overlay():
 _blank_settings_overlay()
 
 
+@pytest.fixture(autouse=True)
+def _no_tw_name_downloads(monkeypatch, tmp_path):
+    """Taiwan name lookups use the built-in table only: no network, no shared cache file."""
+    from tradingagents.dataflows import tw_names
+
+    monkeypatch.setattr(tw_names, "CACHE", tmp_path / "tw_names.json")
+    monkeypatch.setattr(tw_names, "_refresh", lambda: {})
+    monkeypatch.setattr(tw_names, "_names", None)
+    monkeypatch.setattr(tw_names, "_last_try", 0.0)
+
+
 def pytest_configure(config):
     for marker in ("unit", "integration", "smoke"):
         config.addinivalue_line("markers", f"{marker}: {marker}-level tests")

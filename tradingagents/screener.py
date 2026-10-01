@@ -233,6 +233,10 @@ def build_feature_table(
     for col in FUNDAMENTAL_FIELDS:
         table[col] = pd.to_numeric(table[col], errors="coerce")
     table["name"] = table["name"].fillna(pd.Series(table.index, index=table.index))
+    # Taiwan names in Chinese (Yahoo only has the English legal name, e.g. "MEDIATEK INC").
+    from tradingagents.dataflows.tw_names import zh_name
+
+    table["name"] = [zh_name(t) or n for t, n in zip(table.index, table["name"], strict=True)]
     table["market"] = [market_of(t) for t in table.index]
     return table
 

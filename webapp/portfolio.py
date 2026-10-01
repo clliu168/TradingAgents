@@ -92,7 +92,8 @@ def rebalance(df: pd.DataFrame, band: float, usd_twd: float) -> pd.DataFrame:
     fx = d["幣別"].map({"USD": usd_twd, "TWD": 1.0})
     d["約需買賣股數"] = (d["調整金額（台幣）"] / fx / d["現價"]).abs().round(0)
     d["動作"] = ["買進" if x > 0 else "賣出" for x in d["調整金額（台幣）"]]
-    return d[["代碼", "目前比例", "目標比例", "偏離", "動作", "調整金額（台幣）", "約需買賣股數"]]
+    cols = ["代碼", "名稱"] if "名稱" in d.columns else ["代碼"]
+    return d[[*cols, "目前比例", "目標比例", "偏離", "動作", "調整金額（台幣）", "約需買賣股數"]]
 
 
 def write_context(pf: dict) -> None:

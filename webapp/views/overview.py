@@ -5,7 +5,15 @@ import streamlit as st
 
 from webapp import charts, cnnews, data
 from webapp.indicators import add_indicators
-from webapp.ui import ago, chart_dialog, fmt_bar_date, fmt_pct, load_watchlist, page_timestamp
+from webapp.ui import (
+    ago,
+    chart_dialog,
+    display_name,
+    fmt_bar_date,
+    fmt_pct,
+    load_watchlist,
+    page_timestamp,
+)
 
 st.title("🌏 大盤總覽")
 page_timestamp()
@@ -62,6 +70,7 @@ for t in load_watchlist():
     c = h["Close"]
     rows.append({
         "代碼": t,
+        "名稱": display_name(t),
         "資料日期": f"{h.index[-1]:%m/%d}",
         "收盤": round(float(last["Close"]), 2),
         "日漲跌": c.iloc[-1] / c.iloc[-2] - 1,

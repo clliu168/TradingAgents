@@ -15,6 +15,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
+from tradingagents.dataflows.tw_names import label as tw_label
 from webapp.indicators import add_indicators
 from webapp.jobs import DATA_DIR
 
@@ -51,30 +52,31 @@ def check_ticker(ticker: str, hist: pd.DataFrame, rules: dict) -> list[tuple[str
     ind = add_indicators(hist)
     last, prev = ind.iloc[-1], ind.iloc[-2]
     c, pc = float(last["Close"]), float(prev["Close"])
+    who = tw_label(ticker)  # "2330.TW 台積電"
     out = []
     for n, label, key in ((60, "季線", "sma60_cross"), (240, "年線", "sma240_cross")):
         col = f"SMA{n}"
         if rules.get(key) and pd.notna(last.get(col)) and pd.notna(prev.get(col)):
             if pc >= prev[col] and c < last[col]:
-                out.append((f"{key}_down", f"📉 {ticker} 跌破{label}（{last[col]:,.2f}），收 {c:,.2f}"))
+                out.append((f"{key}_down", f"📉 {who} 跌破{label}（{last[col]:,.2f}），收 {c:,.2f}"))
             elif pc <= prev[col] and c > last[col]:
-                out.append((f"{key}_up", f"📈 {ticker} 站上{label}（{last[col]:,.2f}），收 {c:,.2f}"))
+                out.append((f"{key}_up", f"📈 {who} 站上{label}（{last[col]:,.2f}），收 {c:,.2f}"))
     r = last.get("RSI14")
     if pd.notna(r):
         if rules.get("rsi_high") and r >= rules["rsi_high"]:
-            out.append(("rsi_high", f"🔥 {ticker} RSI {r:.0f}，偏過熱"))
+            out.append(("rsi_high", f"🔥 {who} RSI {r:.0f}，偏過熱"))
         if rules.get("rsi_low") and r <= rules["rsi_low"]:
-            out.append(("rsi_low", f"🧊 {ticker} RSI {r:.0f}，偏超賣"))
+            out.append(("rsi_low", f"🧊 {who} RSI {r:.0f}，偏超賣"))
     move = c / pc - 1
     if rules.get("daily_move_pct") and abs(move) * 100 >= rules["daily_move_pct"]:
-        out.append(("move", f"{'🚀' if move > 0 else '⚠️'} {ticker} 單日 {move:+.2%}，收 {c:,.2f}"))
+        out.append(("move", f"{'🚀' if move > 0 else '⚠️'} {who} 單日 {move:+.2%}，收 {c:,.2f}"))
     for t in rules.get("price_targets", []):
         if str(t.get("ticker", "")).upper() != ticker:
             continue
         if t.get("above") and c >= float(t["above"]) > pc:
-            out.append(("above", f"🎯 {ticker} 漲到 {c:,.2f}，超過設定的 {float(t['above']):,.2f}"))
+            out.append(("above", f"🎯 {who} 漲到 {c:,.2f}，超過設定的 {float(t['above']):,.2f}"))
         if t.get("below") and c <= float(t["below"]) < pc:
-            out.append(("below", f"🎯 {ticker} 跌到 {c:,.2f}，低於設定的 {float(t['below']):,.2f}"))
+            out.append(("below", f"🎯 {who} 跌到 {c:,.2f}，低於設定的 {float(t['below']):,.2f}"))
     return out
 
 
@@ -137,7 +139,7 @@ def _rebalance_lines() -> list[str]:
         return float(h["Close"].iloc[-1]) if not h.empty else None
 
     rb = pfm.rebalance(pfm.valuate(pf, price, usd_twd), pf["rebalance_band"], usd_twd)
-    return [f"{r['代碼']} 目前 {r['目前比例']:.1%}／目標 {r['目標比例']:.1%}，建議{r['動作']}約 "
+    return [f"{tw_label(r['代碼'])} 目前 {r['目前比例']:.1%}／目標 {r['目標比例']:.1%}，建議{r['動作']}約 "
             f"{abs(r['調整金額（台幣）']):,.0f} 台幣" for _, r in rb.iterrows()]
 
 

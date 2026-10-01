@@ -7,6 +7,7 @@ from webapp.indicators import add_indicators, signals
 from webapp.services import RESULTS_DIR
 from webapp.ui import (
     ai_digest_block,
+    display_name,
     fmt_bar_date,
     fmt_num,
     fmt_pct,
@@ -36,7 +37,7 @@ ind = add_indicators(hist)
 cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=data.PERIOD_DAYS[period])
 view = ind[ind.index >= cutoff]
 info = data.profile(ticker)
-name = info.get("longName") or info.get("shortName") or ticker
+name = display_name(ticker) or info.get("longName") or ticker
 last, prev = hist["Close"].iloc[-1], hist["Close"].iloc[-2]
 
 st.subheader(f"{name}（{ticker}）")

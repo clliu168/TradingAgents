@@ -6,7 +6,7 @@ import streamlit as st
 
 from webapp import data
 from webapp.performance import WINDOWS, evaluate, load_decisions, summarize
-from webapp.ui import page_timestamp
+from webapp.ui import display_name, page_timestamp
 
 st.title("🎯 AI 建議績效追蹤")
 page_timestamp()
@@ -71,6 +71,7 @@ names = {"date": "分析日", "ticker": "代碼", "horizon": "期間", "rating":
 for n in WINDOWS:
     names |= {f"ret_{n}": f"{n}日報酬", f"alpha_{n}": f"{n}日超額", f"hit_{n}": f"{n}日命中"}
 show = show.rename(columns=names)
+show.insert(2, "名稱", [display_name(t) for t in show["代碼"]])
 pct_cols = [v for k_, v in names.items() if k_.startswith(("ret_", "alpha_"))]
 st.dataframe(show, hide_index=True, width="stretch",
              column_config={c: st.column_config.NumberColumn(format="percent") for c in pct_cols})

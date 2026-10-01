@@ -130,6 +130,11 @@ class TradingAgentsGraph:
         """
         identity = resolve_instrument_identity(ticker)
         context = build_instrument_context(ticker, asset_type, identity, curr_date)
+        from tradingagents.dataflows.tw_names import zh_name
+
+        if zh := zh_name(ticker):
+            context += (f"\nChinese short name: {zh} (Taiwan media refer to the company by this name; "
+                        f"write it as \"{ticker} {zh}\" in the report).")
         if curr_date and self.config.get("taiwan_brief", True):
             from tradingagents.dataflows.vendors.finmind import taiwan_brief
 
